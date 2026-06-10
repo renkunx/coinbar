@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 struct MenuBarPanel: View {
     @ObservedObject var priceStore: PriceStore
@@ -14,13 +15,9 @@ struct MenuBarPanel: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             headerView
-
             Divider()
-
             tickerList
-
             Divider()
-
             footerView
         }
         .frame(width: 260)
@@ -63,7 +60,8 @@ struct MenuBarPanel: View {
     }
 
     private func coinRow(_ ticker: Ticker) -> some View {
-        VStack(alignment: .leading, spacing: 1) {
+        let settings = priceStore.settings
+        return VStack(alignment: .leading, spacing: 1) {
             HStack(spacing: 4) {
                 Text(Self.coinSymbols[ticker.instId] ?? ticker.symbol)
                     .font(.system(size: 11, weight: .semibold))
@@ -72,7 +70,7 @@ struct MenuBarPanel: View {
                     .monospacedDigit()
                 Text(Format.changePct(ticker.changePct))
                     .font(.system(size: 10))
-                    .foregroundColor(ticker.isZero ? .secondary : (ticker.isUp ? .green : .red))
+                    .foregroundColor(panelChangeColor(ticker, settings: settings))
             }
 
             HStack(spacing: 8) {
@@ -122,5 +120,10 @@ struct MenuBarPanel: View {
             .buttonStyle(.link)
             .font(.system(size: 10))
         }
+    }
+
+    private func panelChangeColor(_ ticker: Ticker, settings: AppSettings) -> Color {
+        let nsColor = settings.changeColor(isUp: ticker.isUp, isZero: ticker.isZero)
+        return Color(nsColor: nsColor)
     }
 }

@@ -43,6 +43,14 @@ enum Format {
         }
     }
 
+    static func menuBarPrice(_ value: Double) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.minimumFractionDigits = 2
+        formatter.maximumFractionDigits = 2
+        return formatter.string(from: NSNumber(value: value)) ?? String(format: "%.2f", value)
+    }
+
     static func volume(_ value: Double) -> String {
         switch value {
         case 1_000_000_000...:

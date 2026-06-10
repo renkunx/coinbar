@@ -1,0 +1,24 @@
+{
+  "configurations": [
+    {
+      "type": "swift",
+      "request": "launch",
+      "args": [],
+      "cwd": "${workspaceFolder:coinbar}",
+      "name": "Debug CoinBar",
+      "target": "CoinBar",
+      "configuration": "debug",
+      "preLaunchTask": "swift: Build Debug CoinBar"
+    },
+    {
+      "type": "swift",
+      "request": "launch",
+      "args": [],
+      "cwd": "${workspaceFolder:coinbar}",
+      "name": "Release CoinBar",
+      "target": "CoinBar",
+      "configuration": "release",
+      "preLaunchTask": "swift: Build Release CoinBar"
+    }
+  ]
+}

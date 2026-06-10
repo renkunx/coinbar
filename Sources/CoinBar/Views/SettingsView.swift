@@ -119,6 +119,18 @@ private struct DisplaySettingsTab: View {
             }
             .padding(.horizontal)
 
+            VStack(alignment: .leading, spacing: 8) {
+                Text("涨跌颜色")
+                    .font(.system(size: 11, weight: .medium))
+                Picker("", selection: $settings.priceColorModeRaw) {
+                    Text("绿涨红跌").tag(PriceColorMode.greenUpRedDown.rawValue)
+                    Text("红涨绿跌").tag(PriceColorMode.redUpGreenDown.rawValue)
+                }
+                .pickerStyle(.radioGroup)
+                .labelsHidden()
+            }
+            .padding(.horizontal)
+
             Spacer()
         }
         .padding(.vertical)

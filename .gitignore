@@ -1,0 +1,9 @@
+.build/
+DerivedData/
+*.xcodeproj
+xcuserdata/
+*.xcworkspace
+Packages/
+Package.resolved
+*.DS_Store
+Thumbs.db

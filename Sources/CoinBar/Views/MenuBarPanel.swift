@@ -13,117 +13,148 @@ struct MenuBarPanel: View {
     }()
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(spacing: 0) {
             headerView
             Divider()
+                .padding(.horizontal, -10)
             tickerList
             Divider()
+                .padding(.horizontal, -10)
             footerView
         }
-        .frame(width: 260)
-        .padding(.vertical, 8)
+        .frame(width: 250)
+        .padding(.vertical, 6)
         .padding(.horizontal, 10)
     }
 
     private var headerView: some View {
-        HStack {
+        HStack(spacing: 6) {
+            Image(systemName: "bitcoinsign.circle.fill")
+                .font(.system(size: 12))
+                .foregroundColor(.orange)
             Text("币吧")
-                .font(.headline)
+                .font(.system(size: 12, weight: .semibold))
             Spacer()
+
+            Text(periodLabel)
+                .font(.system(size: 8))
+                .foregroundColor(.secondary)
+                .padding(.horizontal, 4)
+                .padding(.vertical, 1)
+                .background(
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(Color.secondary.opacity(0.12))
+                )
+
             Circle()
                 .fill(priceStore.isConnected ? Color.green : Color.red)
-                .frame(width: 6, height: 6)
+                .frame(width: 5, height: 5)
+        }
+        .padding(.bottom, 4)
+    }
+
+    private var periodLabel: String {
+        switch priceStore.settings.pricePeriod {
+        case .utc8: return "UTC+8"
+        case .utc0: return "UTC+0"
+        case .rolling24h: return "24H"
         }
     }
 
     private var tickerList: some View {
         let tickers = priceStore.enabledTickers
+
         if tickers.isEmpty {
             return AnyView(
                 HStack {
                     Spacer()
-                    Text("等待数据...")
-                        .font(.system(size: 11))
-                        .foregroundColor(.secondary)
+                    ProgressView()
+                        .scaleEffect(0.6)
+                        .padding(.vertical, 16)
                     Spacer()
                 }
-                .padding(.vertical, 8)
             )
         }
+
         return AnyView(
-            VStack(spacing: 4) {
-                ForEach(tickers, id: \.instId) { ticker in
+            VStack(spacing: 0) {
+                ForEach(Array(tickers.enumerated()), id: \.element.instId) { index, ticker in
                     coinRow(ticker)
+                    if index < tickers.count - 1 {
+                        Divider()
+                            .opacity(0.3)
+                    }
                 }
             }
+            .padding(.vertical, 4)
         )
     }
 
     private func coinRow(_ ticker: Ticker) -> some View {
-        let settings = priceStore.settings
-        return VStack(alignment: .leading, spacing: 1) {
-            HStack(spacing: 4) {
-                Text(Self.coinSymbols[ticker.instId] ?? ticker.symbol)
-                    .font(.system(size: 11, weight: .semibold))
-                Text(Format.price(ticker.last))
-                    .font(.system(size: 11, weight: .bold))
-                    .monospacedDigit()
-                Text(Format.changePct(ticker.changePct))
-                    .font(.system(size: 10))
-                    .foregroundColor(panelChangeColor(ticker, settings: settings))
-            }
+        return HStack(spacing: 0) {
+            Text(Self.coinSymbols[ticker.instId] ?? ticker.symbol)
+                .font(.system(size: 11, weight: .semibold))
+                .frame(width: 16, alignment: .leading)
 
-            HStack(spacing: 8) {
-                HStack(spacing: 2) {
-                    Text("H:")
-                        .font(.system(size: 9))
-                        .foregroundColor(.secondary)
-                    Text(Format.price(ticker.high24h))
-                        .font(.system(size: 9))
-                        .monospacedDigit()
-                }
-                HStack(spacing: 2) {
-                    Text("L:")
-                        .font(.system(size: 9))
-                        .foregroundColor(.secondary)
-                    Text(Format.price(ticker.low24h))
-                        .font(.system(size: 9))
-                        .monospacedDigit()
-                }
-                HStack(spacing: 2) {
-                    Text("Vol:")
-                        .font(.system(size: 9))
-                        .foregroundColor(.secondary)
-                    Text(Format.volume(ticker.vol24h))
-                        .font(.system(size: 9))
-                        .monospacedDigit()
-                }
-            }
-            .lineLimit(1)
+            Spacer().frame(width: 6)
+
+            Text(Format.menuBarPrice(ticker.last))
+                .font(.system(size: 12, weight: .bold))
+                .monospacedDigit()
+                .frame(maxWidth: .infinity, alignment: .trailing)
+
+            Spacer().frame(width: 8)
+
+            changeBadge(ticker)
         }
-        .padding(.vertical, 1)
+        .padding(.vertical, 4)
+        .padding(.trailing, 2)
+    }
+
+    private func changeBadge(_ ticker: Ticker) -> some View {
+        let settings = priceStore.settings
+        let period = settings.pricePeriod
+        let nsColor = settings.changeColor(isUp: ticker.isUp(for: period), isZero: ticker.isZero(for: period))
+        let bgColor = Color(nsColor: nsColor).opacity(ticker.isZero(for: period) ? 0.12 : 0.18)
+
+        return Text(Format.changePct(ticker.changePct(for: period)))
+            .font(.system(size: 9, weight: .bold))
+            .monospacedDigit()
+            .foregroundColor(Color(nsColor: nsColor))
+            .padding(.horizontal, 5)
+            .padding(.vertical, 2)
+            .background(
+                RoundedRectangle(cornerRadius: 3)
+                    .fill(bgColor)
+            )
     }
 
     private var footerView: some View {
         HStack {
-            Button("设置...") {
-                priceStore.openSettings()
+            Button(action: { priceStore.openSettings() }) {
+                HStack(spacing: 3) {
+                    Image(systemName: "gearshape")
+                        .font(.system(size: 9))
+                    Text("设置")
+                        .font(.system(size: 10))
+                }
             }
-            .buttonStyle(.link)
-            .font(.system(size: 10))
+            .buttonStyle(.plain)
+            .foregroundColor(.secondary)
 
             Spacer()
 
-            Button("退出") {
-                NSApp.terminate(nil)
+            Button(action: { NSApp.terminate(nil) }) {
+                HStack(spacing: 3) {
+                    Text("退出")
+                        .font(.system(size: 10))
+                    Image(systemName: "power")
+                        .font(.system(size: 8))
+                }
             }
-            .buttonStyle(.link)
-            .font(.system(size: 10))
+            .buttonStyle(.plain)
+            .foregroundColor(.secondary)
         }
-    }
-
-    private func panelChangeColor(_ ticker: Ticker, settings: AppSettings) -> Color {
-        let nsColor = settings.changeColor(isUp: ticker.isUp, isZero: ticker.isZero)
-        return Color(nsColor: nsColor)
+        .padding(.top, 4)
     }
 }

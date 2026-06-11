@@ -77,7 +77,8 @@ private struct DisplaySettingsTab: View {
 
     @State private var localInterval: Double
 
-    init(settings: AppSettings, onRotateIntervalChanged: @escaping (Double) -> Void) {
+    init(settings: AppSettings,
+         onRotateIntervalChanged: @escaping (Double) -> Void) {
         self.settings = settings
         self.onRotateIntervalChanged = onRotateIntervalChanged
         _localInterval = State(initialValue: settings.rotateInterval)
@@ -127,6 +128,18 @@ private struct DisplaySettingsTab: View {
                     Text("红涨绿跌").tag(PriceColorMode.redUpGreenDown.rawValue)
                 }
                 .pickerStyle(.radioGroup)
+                .labelsHidden()
+            }
+            .padding(.horizontal)
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("涨跌周期")
+                    .font(.system(size: 11, weight: .medium))
+                Picker("", selection: $settings.pricePeriodRaw) {
+                    Text("UTC+8 当日开盘").tag(PricePeriod.utc8.rawValue)
+                    Text("UTC+0 当日开盘").tag(PricePeriod.utc0.rawValue)
+                    Text("24 小时滚动").tag(PricePeriod.rolling24h.rawValue)
+                }
                 .labelsHidden()
             }
             .padding(.horizontal)

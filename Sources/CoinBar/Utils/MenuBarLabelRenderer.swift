@@ -87,8 +87,9 @@ enum MenuBarLabelRenderer {
     }
 
     private static func makeRight(ticker: Ticker, settings: AppSettings, fontSize: CGFloat) -> NSAttributedString {
-        let change = Format.changePct(ticker.changePct)
-        let color = settings.changeColor(isUp: ticker.isUp, isZero: ticker.isZero)
+        let period = settings.pricePeriod
+        let change = Format.changePct(ticker.changePct(for: period))
+        let color = settings.changeColor(isUp: ticker.isUp(for: period), isZero: ticker.isZero(for: period))
         return attr(string: change, size: fontSize, weight: .medium, color: color)
     }
 

@@ -12,7 +12,7 @@ final class PriceStore: ObservableObject {
     let settings = AppSettings()
     private let webSocket = OKXWebSocketService()
     private var rotationTimer: AnyCancellable?
-    private var settingsObserver: AnyCancellable?
+    private var cancellables = Set<AnyCancellable>()
 
     var enabledTickers: [Ticker] {
         settings.enabledCoins.compactMap { tickers[$0.instId] }
@@ -42,11 +42,12 @@ final class PriceStore: ObservableObject {
         NSApp.setActivationPolicy(.accessory)
         webSocket.delegate = self
 
-        settingsObserver = settings.objectWillChange
+        settings.objectWillChange
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 self?.onSubscriptionsChanged()
             }
+            .store(in: &cancellables)
 
         connect()
         startRotation()

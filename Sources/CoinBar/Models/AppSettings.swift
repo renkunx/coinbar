@@ -19,12 +19,12 @@ enum PricePeriod: String, CaseIterable {
 
 final class AppSettings: ObservableObject {
     static let allCoins: [Coin] = [
-        Coin(instId: "BTC-USDT", symbol: "₿"),
-        Coin(instId: "ETH-USDT", symbol: "Ξ"),
-        Coin(instId: "SOL-USDT", symbol: "◎"),
+        Coin(instId: "BTC-USDT", symbol: "BTC"),
+        Coin(instId: "ETH-USDT", symbol: "ETH"),
+        Coin(instId: "SOL-USDT", symbol: "SOL"),
         Coin(instId: "BNB-USDT", symbol: "BNB"),
         Coin(instId: "XRP-USDT", symbol: "XRP"),
-        Coin(instId: "DOGE-USDT", symbol: "Ð"),
+        Coin(instId: "DOGE-USDT", symbol: "DOGE"),
         Coin(instId: "ADA-USDT", symbol: "ADA"),
         Coin(instId: "AVAX-USDT", symbol: "AVAX"),
         Coin(instId: "DOT-USDT", symbol: "DOT"),

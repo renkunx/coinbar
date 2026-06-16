@@ -1,0 +1,44 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    name: Build & Release
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build (release)
+        run: swift build -c release
+
+      - name: Create app bundle
+        run: |
+          mkdir -p CoinBar.app/Contents/MacOS
+          cp "$(swift build --show-bin-path -c release)/CoinBar" CoinBar.app/Contents/MacOS/
+          cp Resources/Info.plist CoinBar.app/Contents/
+
+      - name: Sign (ad-hoc)
+        run: codesign --force --deep --sign - CoinBar.app
+
+      - name: Package DMG
+        run: |
+          hdiutil create \
+            -volname "CoinBar" \
+            -srcfolder CoinBar.app \
+            -format UDZO \
+            -ov \
+            CoinBar.dmg
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: "${{ github.ref_name }}"
+          files: CoinBar.dmg
+          draft: true
+          generate_release_notes: true

@@ -13,44 +13,58 @@ struct MenuBarPanel: View {
     }()
 
     var body: some View {
-        VStack(spacing: 0) {
+        VStack(spacing: 10) {
             headerView
             Divider()
-                .padding(.horizontal, -10)
+                .background(Color.white.opacity(0.12))
+                .padding(.horizontal, 8)
             tickerList
             Divider()
-                .padding(.horizontal, -10)
+                .background(Color.white.opacity(0.12))
+                .padding(.horizontal, 8)
             footerView
         }
-        .frame(width: 250)
-        .padding(.vertical, 6)
-        .padding(.horizontal, 10)
+        .frame(width: 268)
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(.ultraThinMaterial)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+        )
+        .shadow(color: Color.black.opacity(0.25), radius: 24, x: 0, y: 10)
     }
 
     private var headerView: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 8) {
             Image(systemName: "bitcoinsign.circle.fill")
-                .font(.system(size: 12))
+                .font(.system(size: 14))
                 .foregroundColor(.orange)
+                .frame(width: 20, height: 20)
+
             Text("币吧")
-                .font(.system(size: 12, weight: .semibold))
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundColor(.primary)
+
             Spacer()
 
             Text(periodLabel)
-                .font(.system(size: 8))
+                .font(.system(size: 9, weight: .medium))
                 .foregroundColor(.secondary)
-                .padding(.horizontal, 4)
-                .padding(.vertical, 1)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 3)
                 .background(
-                    RoundedRectangle(cornerRadius: 2)
-                        .fill(Color.secondary.opacity(0.12))
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(Color.secondary.opacity(0.1))
                 )
 
             Circle()
                 .fill(priceStore.isConnected ? Color.green : Color.red)
-                .frame(width: 5, height: 5)
+                .frame(width: 6, height: 6)
         }
-        .padding(.bottom, 4)
+        .padding(.bottom, 6)
     }
 
     private var periodLabel: String {
@@ -91,52 +105,70 @@ struct MenuBarPanel: View {
     }
 
     private func coinRow(_ ticker: Ticker) -> some View {
-        return HStack(spacing: 0) {
-            Text(Self.coinSymbols[ticker.instId] ?? ticker.symbol)
-                .font(.system(size: 11, weight: .semibold))
-                .frame(width: 16, alignment: .leading)
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(Self.coinSymbols[ticker.instId] ?? ticker.symbol)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(.secondary)
+                    .fixedSize()
 
-            Spacer().frame(width: 6)
+                Spacer(minLength: 6)
 
-            Text(Format.menuBarPrice(ticker.last))
-                .font(.system(size: 12, weight: .bold))
-                .monospacedDigit()
+                HStack(spacing: 8) {
+                    Text(Format.menuBarPrice(ticker.last))
+                        .font(.system(size: 13, weight: .bold))
+                        .monospacedDigit()
+                        .foregroundColor(.primary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                        .layoutPriority(1)
+
+                    changeBadge(ticker)
+                }
                 .frame(maxWidth: .infinity, alignment: .trailing)
+            }
 
-            Spacer().frame(width: 8)
-
-            changeBadge(ticker)
+            lowHighRow(ticker)
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 6)
         .padding(.trailing, 2)
+    }
+
+    private func lowHighRow(_ ticker: Ticker) -> some View {
+        HStack(spacing: 12) {
+            Text("最低 " + Format.menuBarPrice(ticker.low24h))
+            Text("最高 " + Format.menuBarPrice(ticker.high24h))
+        }
+        .font(.system(size: 10, weight: .regular))
+        .foregroundColor(.secondary)
     }
 
     private func changeBadge(_ ticker: Ticker) -> some View {
         let settings = priceStore.settings
         let period = settings.pricePeriod
         let nsColor = settings.changeColor(isUp: ticker.isUp(for: period), isZero: ticker.isZero(for: period))
-        let bgColor = Color(nsColor: nsColor).opacity(ticker.isZero(for: period) ? 0.12 : 0.18)
+        let bgColor = Color(nsColor: nsColor).opacity(ticker.isZero(for: period) ? 0.14 : 0.22)
 
         return Text(Format.changePct(ticker.changePct(for: period)))
-            .font(.system(size: 9, weight: .bold))
+            .font(.system(size: 9, weight: .semibold))
             .monospacedDigit()
             .foregroundColor(Color(nsColor: nsColor))
-            .padding(.horizontal, 5)
-            .padding(.vertical, 2)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 3)
             .background(
-                RoundedRectangle(cornerRadius: 3)
+                RoundedRectangle(cornerRadius: 4)
                     .fill(bgColor)
             )
     }
 
     private var footerView: some View {
-        HStack {
+        HStack(spacing: 0) {
             Button(action: { priceStore.openSettings() }) {
-                HStack(spacing: 3) {
+                HStack(spacing: 4) {
                     Image(systemName: "gearshape")
-                        .font(.system(size: 9))
+                        .font(.system(size: 10, weight: .medium))
                     Text("设置")
-                        .font(.system(size: 10))
+                        .font(.system(size: 11, weight: .medium))
                 }
             }
             .buttonStyle(.plain)
@@ -145,16 +177,16 @@ struct MenuBarPanel: View {
             Spacer()
 
             Button(action: { NSApp.terminate(nil) }) {
-                HStack(spacing: 3) {
+                HStack(spacing: 4) {
                     Text("退出")
-                        .font(.system(size: 10))
+                        .font(.system(size: 11, weight: .medium))
                     Image(systemName: "power")
-                        .font(.system(size: 8))
+                        .font(.system(size: 9, weight: .medium))
                 }
             }
             .buttonStyle(.plain)
             .foregroundColor(.secondary)
         }
-        .padding(.top, 4)
+        .padding(.top, 6)
     }
 }

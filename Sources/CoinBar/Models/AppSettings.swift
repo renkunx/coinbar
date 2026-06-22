@@ -22,7 +22,7 @@ final class AppSettings: ObservableObject {
         Coin(instId: "BTC-USDT", symbol: "BTC"),
         Coin(instId: "ETH-USDT", symbol: "ETH"),
         Coin(instId: "SOL-USDT", symbol: "SOL"),
-        Coin(instId: "TON-USDT", symbol: "TON"),
+        Coin(instId: "GRAM-USDT", symbol: "GRAM"),
         Coin(instId: "BNB-USDT", symbol: "BNB"),
         Coin(instId: "XRP-USDT", symbol: "XRP"),
         Coin(instId: "DOGE-USDT", symbol: "DOGE"),
@@ -42,7 +42,7 @@ final class AppSettings: ObservableObject {
         Coin(instId: "LTC-USDT", symbol: "LTC"),
     ]
 
-    private static let defaultEnabled = ["BTC-USDT", "ETH-USDT", "SOL-USDT"]
+    private static let defaultEnabled = ["BTC-USDT", "ETH-USDT", "SOL-USDT", "GRAM-USDT"]
 
     @AppStorage("enabledInstIdsJSON") private var enabledInstIdsJSON: String = ""
 

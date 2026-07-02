@@ -4,6 +4,16 @@ import AppKit
 struct MenuBarPanel: View {
     @ObservedObject var priceStore: PriceStore
 
+    // 表格列宽：表头与各行共用，保证竖向对齐
+    private enum Column {
+        static let symbol: CGFloat = 35
+        static let price: CGFloat = 70
+        static let change: CGFloat = 56
+        static let low: CGFloat = 55
+        static let high: CGFloat = 55
+        static let spacing: CGFloat = 6
+    }
+
     private static let coinSymbols: [String: String] = {
         var dict: [String: String] = [:]
         for coin in AppSettings.allCoins {
@@ -24,7 +34,7 @@ struct MenuBarPanel: View {
                 .padding(.horizontal, 8)
             footerView
         }
-        .frame(width: 268)
+        .frame(width: 300)
         .padding(12)
         .background(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
@@ -44,7 +54,7 @@ struct MenuBarPanel: View {
                 .foregroundColor(.orange)
                 .frame(width: 20, height: 20)
 
-            Text("币吧 ·横排v2")
+            Text("币吧")
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundColor(.primary)
 
@@ -91,7 +101,8 @@ struct MenuBarPanel: View {
         }
 
         return AnyView(
-            VStack(spacing: 0) {
+            VStack(spacing: 2) {
+                columnHeader
                 ForEach(Array(tickers.enumerated()), id: \.element.instId) { index, ticker in
                     coinRow(ticker)
                     if index < tickers.count - 1 {
@@ -104,38 +115,68 @@ struct MenuBarPanel: View {
         )
     }
 
+    // 表头列名：低/高 作为列名，每行只填数值
+    private var columnHeader: some View {
+        HStack(spacing: Column.spacing) {
+            Text("币种")
+                .frame(width: Column.symbol, alignment: .leading)
+            Text("最新")
+                .frame(width: Column.price, alignment: .trailing)
+            Text("涨跌")
+                .frame(width: Column.change, alignment: .center)
+            Spacer(minLength: 0)
+            Text("低")
+                .frame(width: Column.low, alignment: .trailing)
+            Text("高")
+                .frame(width: Column.high, alignment: .trailing)
+        }
+        .font(.system(size: 9, weight: .medium))
+        .foregroundColor(.secondary.opacity(0.7))
+        .padding(.bottom, 4)
+        .padding(.horizontal, 2)
+    }
+
     private func coinRow(_ ticker: Ticker) -> some View {
-        HStack(spacing: 8) {
-            // 左侧主信息：符号 + 价格 + 涨跌
+        HStack(spacing: Column.spacing) {
+            // 币种
             Text(Self.coinSymbols[ticker.instId] ?? ticker.symbol)
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundColor(.secondary)
                 .lineLimit(1)
+                .frame(width: Column.symbol, alignment: .leading)
 
+            // 最新价
             Text(Format.menuBarPrice(ticker.last))
                 .font(.system(size: 13, weight: .bold))
                 .monospacedDigit()
                 .foregroundColor(.primary)
                 .lineLimit(1)
+                .frame(width: Column.price, alignment: .trailing)
 
+            // 涨跌
             changeBadge(ticker)
+                .frame(width: Column.change, alignment: .center)
 
-            Spacer(minLength: 8)
+            Spacer(minLength: 0)
 
-            // 右侧辅助信息：低/高（紧凑、次级色）
-            Text("L " + Format.menuBarPrice(ticker.low24h))
-                .font(.system(size: 9, weight: .regular))
+            // 低（列名已在表头，此处只填数值）
+            Text(Format.menuBarPrice(ticker.low24h))
+                .font(.system(size: 10, weight: .regular))
                 .monospacedDigit()
                 .foregroundColor(.secondary.opacity(0.85))
                 .lineLimit(1)
+                .frame(width: Column.low, alignment: .trailing)
 
-            Text("H " + Format.menuBarPrice(ticker.high24h))
-                .font(.system(size: 9, weight: .regular))
+            // 高
+            Text(Format.menuBarPrice(ticker.high24h))
+                .font(.system(size: 10, weight: .regular))
                 .monospacedDigit()
                 .foregroundColor(.secondary.opacity(0.85))
                 .lineLimit(1)
+                .frame(width: Column.high, alignment: .trailing)
         }
-        .padding(.vertical, 6)
+        .padding(.vertical, 5)
+        .padding(.horizontal, 2)
     }
 
     private func changeBadge(_ ticker: Ticker) -> some View {

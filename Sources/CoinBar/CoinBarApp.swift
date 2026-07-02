@@ -12,5 +12,6 @@ struct CoinBarApp: App {
                 Image(nsImage: image)
             }
         }
+        .menuBarExtraStyle(.window)
     }
 }

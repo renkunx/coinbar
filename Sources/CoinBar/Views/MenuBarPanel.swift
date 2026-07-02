@@ -44,7 +44,7 @@ struct MenuBarPanel: View {
                 .foregroundColor(.orange)
                 .frame(width: 20, height: 20)
 
-            Text("币吧")
+            Text("币吧 ·横排v2")
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundColor(.primary)
 
@@ -105,42 +105,37 @@ struct MenuBarPanel: View {
     }
 
     private func coinRow(_ ticker: Ticker) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(Self.coinSymbols[ticker.instId] ?? ticker.symbol)
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundColor(.secondary)
-                    .fixedSize()
+        HStack(spacing: 8) {
+            // 左侧主信息：符号 + 价格 + 涨跌
+            Text(Self.coinSymbols[ticker.instId] ?? ticker.symbol)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundColor(.secondary)
+                .lineLimit(1)
 
-                Spacer(minLength: 6)
+            Text(Format.menuBarPrice(ticker.last))
+                .font(.system(size: 13, weight: .bold))
+                .monospacedDigit()
+                .foregroundColor(.primary)
+                .lineLimit(1)
 
-                HStack(spacing: 8) {
-                    Text(Format.menuBarPrice(ticker.last))
-                        .font(.system(size: 13, weight: .bold))
-                        .monospacedDigit()
-                        .foregroundColor(.primary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
-                        .layoutPriority(1)
+            changeBadge(ticker)
 
-                    changeBadge(ticker)
-                }
-                .frame(maxWidth: .infinity, alignment: .trailing)
-            }
+            Spacer(minLength: 8)
 
-            lowHighRow(ticker)
+            // 右侧辅助信息：低/高（紧凑、次级色）
+            Text("L " + Format.menuBarPrice(ticker.low24h))
+                .font(.system(size: 9, weight: .regular))
+                .monospacedDigit()
+                .foregroundColor(.secondary.opacity(0.85))
+                .lineLimit(1)
+
+            Text("H " + Format.menuBarPrice(ticker.high24h))
+                .font(.system(size: 9, weight: .regular))
+                .monospacedDigit()
+                .foregroundColor(.secondary.opacity(0.85))
+                .lineLimit(1)
         }
         .padding(.vertical, 6)
-        .padding(.trailing, 2)
-    }
-
-    private func lowHighRow(_ ticker: Ticker) -> some View {
-        HStack(spacing: 12) {
-            Text("最低 " + Format.menuBarPrice(ticker.low24h))
-            Text("最高 " + Format.menuBarPrice(ticker.high24h))
-        }
-        .font(.system(size: 10, weight: .regular))
-        .foregroundColor(.secondary)
     }
 
     private func changeBadge(_ ticker: Ticker) -> some View {

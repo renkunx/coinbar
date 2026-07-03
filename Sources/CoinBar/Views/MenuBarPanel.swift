@@ -14,13 +14,13 @@ struct MenuBarPanel: View {
         static let spacing: CGFloat = 6
     }
 
-    private static let coinSymbols: [String: String] = {
+    private var coinSymbols: [String: String] {
         var dict: [String: String] = [:]
-        for coin in AppSettings.allCoins {
+        for coin in priceStore.settings.allCoins {
             dict[coin.instId] = coin.symbol
         }
         return dict
-    }()
+    }
 
     var body: some View {
         VStack(spacing: 10) {
@@ -139,7 +139,7 @@ struct MenuBarPanel: View {
     private func coinRow(_ ticker: Ticker) -> some View {
         HStack(spacing: Column.spacing) {
             // 币种
-            Text(Self.coinSymbols[ticker.instId] ?? ticker.symbol)
+            Text(coinSymbols[ticker.instId] ?? ticker.symbol)
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundColor(.secondary)
                 .lineLimit(1)

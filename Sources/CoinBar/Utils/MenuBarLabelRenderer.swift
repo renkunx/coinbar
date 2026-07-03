@@ -7,28 +7,30 @@ enum MenuBarLabelRenderer {
     private static let barHeight: CGFloat = NSStatusBar.system.thickness
     private static let pad: CGFloat = 6
     private static let cellGap: CGFloat = 6
-    private static let coinSymbols: [String: String] = {
+
+    private static func coinSymbols(for settings: AppSettings) -> [String: String] {
         var dict: [String: String] = [:]
-        for coin in AppSettings.allCoins {
+        for coin in settings.allCoins {
             dict[coin.instId] = coin.symbol
         }
         return dict
-    }()
+    }
 
     @MainActor
     static func render(priceStore: PriceStore) -> NSImage? {
         let settings = priceStore.settings
+        let symbols = coinSymbols(for: settings)
 
         switch settings.displayMode {
         case .single:
             guard let ticker = priceStore.currentTicker else {
                 return placeholder()
             }
-            return singleLine(ticker: ticker, settings: settings)
+            return singleLine(ticker: ticker, settings: settings, symbols: symbols)
 
         case .stack:
             let tickers = priceStore.currentPageTickers
-            return stackLayout(tickers: tickers, settings: settings)
+            return stackLayout(tickers: tickers, settings: settings, symbols: symbols)
         }
     }
 
@@ -46,8 +48,8 @@ enum MenuBarLabelRenderer {
         return image
     }
 
-    private static func singleLine(ticker: Ticker, settings: AppSettings) -> NSImage {
-        let left = makeLeft(symbol: coinSymbols[ticker.instId] ?? ticker.symbol,
+    private static func singleLine(ticker: Ticker, settings: AppSettings, symbols: [String: String]) -> NSImage {
+        let left = makeLeft(symbol: symbols[ticker.instId] ?? ticker.symbol,
                             price: Format.menuBarPrice(ticker.last),
                             fontSize: baseFontSize)
 
@@ -58,18 +60,18 @@ enum MenuBarLabelRenderer {
         return drawRow(left: left, right: right)
     }
 
-    private static func stackLayout(tickers: [Ticker], settings: AppSettings) -> NSImage {
+    private static func stackLayout(tickers: [Ticker], settings: AppSettings, symbols: [String: String]) -> NSImage {
         switch tickers.count {
         case 0: return placeholder()
-        case 1: return singleLine(ticker: tickers[0], settings: settings)
-        case 2: return twoColumnLayout(tickers: tickers, settings: settings)
-        case 3: return threeLayout(tickers: tickers, settings: settings)
-        default: return gridLayout(tickers: Array(tickers.prefix(4)), settings: settings)
+        case 1: return singleLine(ticker: tickers[0], settings: settings, symbols: symbols)
+        case 2: return twoColumnLayout(tickers: tickers, settings: settings, symbols: symbols)
+        case 3: return threeLayout(tickers: tickers, settings: settings, symbols: symbols)
+        default: return gridLayout(tickers: Array(tickers.prefix(4)), settings: settings, symbols: symbols)
         }
     }
 
-    private static func cellParts(_ ticker: Ticker, settings: AppSettings) -> (left: NSAttributedString, right: NSAttributedString?) {
-        let left = makeLeft(symbol: coinSymbols[ticker.instId] ?? ticker.symbol,
+    private static func cellParts(_ ticker: Ticker, settings: AppSettings, symbols: [String: String]) -> (left: NSAttributedString, right: NSAttributedString?) {
+        let left = makeLeft(symbol: symbols[ticker.instId] ?? ticker.symbol,
                             price: Format.menuBarPrice(ticker.last),
                             fontSize: smallFontSize)
         let right: NSAttributedString? = settings.showChangePct
@@ -112,9 +114,9 @@ enum MenuBarLabelRenderer {
         }
     }
 
-    private static func twoColumnLayout(tickers: [Ticker], settings: AppSettings) -> NSImage {
-        let p0 = cellParts(tickers[0], settings: settings)
-        let p1 = cellParts(tickers[1], settings: settings)
+    private static func twoColumnLayout(tickers: [Ticker], settings: AppSettings, symbols: [String: String]) -> NSImage {
+        let p0 = cellParts(tickers[0], settings: settings, symbols: symbols)
+        let p1 = cellParts(tickers[1], settings: settings, symbols: symbols)
 
         let cw0 = cellFullWidth(left: p0.left, right: p0.right)
         let cw1 = cellFullWidth(left: p1.left, right: p1.right)
@@ -130,10 +132,10 @@ enum MenuBarLabelRenderer {
         return image
     }
 
-    private static func threeLayout(tickers: [Ticker], settings: AppSettings) -> NSImage {
-        let p0 = cellParts(tickers[0], settings: settings)
-        let p1 = cellParts(tickers[1], settings: settings)
-        let p2 = cellParts(tickers[2], settings: settings)
+    private static func threeLayout(tickers: [Ticker], settings: AppSettings, symbols: [String: String]) -> NSImage {
+        let p0 = cellParts(tickers[0], settings: settings, symbols: symbols)
+        let p1 = cellParts(tickers[1], settings: settings, symbols: symbols)
+        let p2 = cellParts(tickers[2], settings: settings, symbols: symbols)
 
         let cw0 = cellFullWidth(left: p0.left, right: p0.right)
         let cw1 = cellFullWidth(left: p1.left, right: p1.right)
@@ -160,8 +162,8 @@ enum MenuBarLabelRenderer {
         return image
     }
 
-    private static func gridLayout(tickers: [Ticker], settings: AppSettings) -> NSImage {
-        let parts = tickers.map { cellParts($0, settings: settings) }
+    private static func gridLayout(tickers: [Ticker], settings: AppSettings, symbols: [String: String]) -> NSImage {
+        let parts = tickers.map { cellParts($0, settings: settings, symbols: symbols) }
         let widths = parts.map { cellFullWidth(left: $0.left, right: $0.right) }
 
         let topW = max(widths.count > 0 ? widths[0] : 0, widths.count > 1 ? widths[1] : 0)

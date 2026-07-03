@@ -18,7 +18,8 @@ enum PricePeriod: String, CaseIterable {
 }
 
 final class AppSettings: ObservableObject {
-    static let allCoins: [Coin] = [
+    // 内置默认币种（恢复默认 / 首次启动兜底）
+    static let defaultCoins: [Coin] = [
         Coin(instId: "BTC-USDT", symbol: "BTC"),
         Coin(instId: "ETH-USDT", symbol: "ETH"),
         Coin(instId: "SOL-USDT", symbol: "SOL"),
@@ -45,6 +46,50 @@ final class AppSettings: ObservableObject {
     private static let defaultEnabled = ["BTC-USDT", "ETH-USDT", "SOL-USDT", "GRAM-USDT"]
 
     @AppStorage("enabledInstIdsJSON") private var enabledInstIdsJSON: String = ""
+
+    // 完整币种列表（内置 + 自定义），持久化
+    @AppStorage("allCoinsJSON") private var allCoinsJSON: String = ""
+
+    var allCoins: [Coin] {
+        get {
+            guard !allCoinsJSON.isEmpty,
+                  let data = allCoinsJSON.data(using: .utf8),
+                  let coins = try? JSONDecoder().decode([Coin].self, from: data),
+                  !coins.isEmpty else {
+                return Self.defaultCoins
+            }
+            return coins
+        }
+        set {
+            if let data = try? JSONEncoder().encode(newValue),
+               let json = String(data: data, encoding: .utf8) {
+                allCoinsJSON = json
+            }
+            objectWillChange.send()
+        }
+    }
+
+    /// 引导式添加自定义币种：基础币符号 + 计价币（USDT/USDC）
+    @discardableResult
+    func addCoin(baseSymbol: String, quoteCoin: String) -> Bool {
+        let base = baseSymbol.trimmingCharacters(in: .whitespaces).uppercased()
+        guard !base.isEmpty, base.allSatisfy({ $0.isLetter || $0.isNumber }) else { return false }
+        let instId = "\(base)-\(quoteCoin)"
+        guard !allCoins.contains(where: { $0.instId == instId }) else { return false }
+        allCoins.append(Coin(instId: instId, symbol: base))
+        return true
+    }
+
+    /// 删除币种（内置/自定义均可删）
+    func removeCoin(instId: String) {
+        allCoins.removeAll { $0.instId == instId }
+        enabledInstIds.removeAll { $0 == instId }
+    }
+
+    /// 恢复内置默认币种列表
+    func resetCoinsToDefault() {
+        allCoins = Self.defaultCoins
+    }
 
     @AppStorage("displayMode") var displayModeRaw: String = DisplayMode.single.rawValue
     @AppStorage("rotateInterval") var rotateInterval: Double = 3.0
@@ -75,7 +120,7 @@ final class AppSettings: ObservableObject {
     }
 
     var enabledCoins: [Coin] {
-        Self.allCoins.filter { enabledInstIds.contains($0.instId) }
+        allCoins.filter { enabledInstIds.contains($0.instId) }
     }
 
     var priceColorMode: PriceColorMode {

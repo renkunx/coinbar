@@ -21,8 +21,8 @@ final class SettingsWindowManager {
         let hostingController = NSHostingController(rootView: settingsView)
         let window = NSWindow(contentViewController: hostingController)
         window.title = "币吧设置"
-        window.styleMask = [.titled, .closable, .miniaturizable]
-        window.setContentSize(NSSize(width: 360, height: 420))
+        window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
+        window.setContentSize(NSSize(width: 420, height: 560))
         window.center()
         window.isReleasedWhenClosed = false
 

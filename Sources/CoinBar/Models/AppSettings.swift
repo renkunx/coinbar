@@ -29,18 +29,6 @@ final class AppSettings: ObservableObject {
         Coin(instId: "DOGE-USDT", symbol: "DOGE"),
         Coin(instId: "ADA-USDT", symbol: "ADA"),
         Coin(instId: "AVAX-USDT", symbol: "AVAX"),
-        Coin(instId: "DOT-USDT", symbol: "DOT"),
-        Coin(instId: "LINK-USDT", symbol: "LINK"),
-        Coin(instId: "UNI-USDT", symbol: "UNI"),
-        Coin(instId: "ATOM-USDT", symbol: "ATOM"),
-        Coin(instId: "MATIC-USDT", symbol: "MATIC"),
-        Coin(instId: "APT-USDT", symbol: "APT"),
-        Coin(instId: "ARB-USDT", symbol: "ARB"),
-        Coin(instId: "OP-USDT", symbol: "OP"),
-        Coin(instId: "NEAR-USDT", symbol: "NEAR"),
-        Coin(instId: "ETC-USDT", symbol: "ETC"),
-        Coin(instId: "FIL-USDT", symbol: "FIL"),
-        Coin(instId: "LTC-USDT", symbol: "LTC"),
     ]
 
     private static let defaultEnabled = ["BTC-USDT", "ETH-USDT", "SOL-USDT", "GRAM-USDT"]

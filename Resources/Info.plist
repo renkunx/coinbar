@@ -18,6 +18,10 @@
     <string>APPL</string>
     <key>CFBundleExecutable</key>
     <string>CoinBar</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
+    <key>CFBundleIconName</key>
+    <string>AppIcon</string>
     <key>NSAppTransportSecurity</key>
     <dict>
         <key>NSAllowsArbitraryLoads</key>

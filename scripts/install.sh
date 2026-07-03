@@ -22,9 +22,13 @@ echo "  -> ${BIN_PATH}"
 
 echo -e "${GREEN}[2/5]${NC} Creating ${APP_NAME}.app bundle..."
 rm -rf "${APP_NAME}.app"
-mkdir -p "${APP_NAME}.app/Contents/MacOS"
+mkdir -p "${APP_NAME}.app/Contents/MacOS" "${APP_NAME}.app/Contents/Resources"
 cp "$BIN_PATH" "${APP_NAME}.app/Contents/MacOS/"
 cp "${RESOURCES_DIR}/Info.plist" "${APP_NAME}.app/Contents/"
+# 拷贝应用图标
+if [ -f "${RESOURCES_DIR}/AppIcon.icns" ]; then
+  cp "${RESOURCES_DIR}/AppIcon.icns" "${APP_NAME}.app/Contents/Resources/"
+fi
 echo "  -> ${APP_NAME}.app created"
 
 echo -e "${GREEN}[3/5]${NC} Signing (ad-hoc)..."

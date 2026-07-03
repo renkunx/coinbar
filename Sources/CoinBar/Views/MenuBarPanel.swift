@@ -49,10 +49,24 @@ struct MenuBarPanel: View {
 
     private var headerView: some View {
         HStack(spacing: 8) {
-            Image(systemName: "bitcoinsign.circle.fill")
-                .font(.system(size: 14))
-                .foregroundColor(.orange)
-                .frame(width: 20, height: 20)
+            ZStack {
+                RoundedRectangle(cornerRadius: 3.5)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color(red: 1.0, green: 0.69, blue: 0.13),
+                                Color(red: 0.91, green: 0.48, blue: 0.04)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                    .frame(width: 20, height: 20)
+                Image(systemName: "bitcoinsign")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundColor(.white)
+            }
+            .frame(width: 20, height: 20)
 
             Text("币吧")
                 .font(.system(size: 14, weight: .semibold))

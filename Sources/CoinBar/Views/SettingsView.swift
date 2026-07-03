@@ -388,9 +388,23 @@ private struct AboutTab: View {
         VStack(spacing: 14) {
             Spacer()
 
-            Image(systemName: "bitcoinsign.circle.fill")
-                .font(.system(size: 56))
-                .foregroundColor(.orange)
+            ZStack {
+                RoundedRectangle(cornerRadius: 14)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color(red: 1.0, green: 0.69, blue: 0.13),
+                                Color(red: 0.91, green: 0.48, blue: 0.04)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                    .frame(width: 64, height: 64)
+                Image(systemName: "bitcoinsign")
+                    .font(.system(size: 32, weight: .bold))
+                    .foregroundColor(.white)
+            }
 
             Text("币吧 CoinBar")
                 .font(.title2)

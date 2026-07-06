@@ -7,3 +7,6 @@ Packages/
 Package.resolved
 *.DS_Store
 Thumbs.db
+CoinBar.app
+dmg-staging
+CoinBar.dmg

@@ -35,9 +35,10 @@ jobs:
 
       - name: Create app bundle
         run: |
-          mkdir -p CoinBar.app/Contents/MacOS
+          mkdir -p CoinBar.app/Contents/MacOS CoinBar.app/Contents/Resources
           cp "$(swift build --show-bin-path -c release)/CoinBar" CoinBar.app/Contents/MacOS/
           cp Resources/Info.plist CoinBar.app/Contents/
+          cp Resources/AppIcon.icns CoinBar.app/Contents/Resources/
 
       - name: Sign (ad-hoc)
         run: codesign --force --deep --sign - CoinBar.app

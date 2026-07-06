@@ -14,6 +14,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Set build number
+        run: |
+          BUILD_NUM=$(git rev-list --count HEAD)
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUM" Resources/Info.plist
+          echo "Build number: $BUILD_NUM"
+
+      - name: Set marketing version from tag
+        run: |
+          TAG="${{ github.ref_name }}"
+          VERSION="${TAG#v}"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" Resources/Info.plist
+          echo "Version: $VERSION"
+
       - name: Build (release)
         run: swift build -c release
 

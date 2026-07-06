@@ -410,9 +410,12 @@ private struct AboutTab: View {
                 .font(.title2)
                 .bold()
 
-            Text("版本 1.0.0")
-                .font(.system(size: 11))
-                .foregroundColor(.secondary)
+            if let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String,
+               let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String {
+                Text("版本 \(version) (\(build))")
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+            }
 
             Text("加密货币行情监控")
                 .font(.system(size: 11))

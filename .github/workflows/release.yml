@@ -9,8 +9,8 @@ permissions:
   contents: write
 
 jobs:
-  release:
-    name: Build & Release
+  build:
+    name: Build Artifact
     runs-on: macos-latest
 
     steps:
@@ -50,6 +50,27 @@ jobs:
             -format UDZO \
             -ov \
             CoinBar.dmg
+
+      - name: Upload Release Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CoinBar-dmg
+          path: CoinBar.dmg
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download Release Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: CoinBar-dmg
+          path: .
 
       - name: Create Release
         uses: softprops/action-gh-release@v1

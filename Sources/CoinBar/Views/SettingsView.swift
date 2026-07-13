@@ -273,92 +273,85 @@ private struct DisplaySettingsTab: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 14) {
-                Text("显示设置")
-                    .font(.system(size: 14, weight: .semibold))
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal)
+        VStack(spacing: 14) {
+            Text("显示设置")
+                .font(.system(size: 14, weight: .semibold))
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal)
 
-                // 显示模式
-                settingsCard {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Label("显示模式", systemImage: "rectangle.split.3x1")
-                            .font(.system(size: 11, weight: .semibold))
-                        Picker("", selection: $settings.displayModeRaw) {
-                            Text("单行轮播").tag(DisplayMode.single.rawValue)
-                            Text("多行堆叠").tag(DisplayMode.stack.rawValue)
-                        }
-                        .pickerStyle(.segmented)
-                        .labelsHidden()
-                        Text(settings.displayMode == .single ? "逐个轮播展示已启用币种" : "同时堆叠展示多个币种")
-                            .font(.system(size: 9))
-                            .foregroundColor(.secondary)
+            settingsCard {
+                VStack(alignment: .leading, spacing: 8) {
+                    Label("显示模式", systemImage: "rectangle.split.3x1")
+                        .font(.system(size: 11, weight: .semibold))
+                    Picker("", selection: $settings.displayModeRaw) {
+                        Text("单行轮播").tag(DisplayMode.single.rawValue)
+                        Text("多行堆叠").tag(DisplayMode.stack.rawValue)
                     }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    Text(settings.displayMode == .single ? "逐个轮播展示已启用币种" : "同时堆叠展示多个币种")
+                        .font(.system(size: 9))
+                        .foregroundColor(.secondary)
                 }
-
-                // 轮播间隔
-                settingsCard {
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            Label("轮播间隔", systemImage: "timer")
-                                .font(.system(size: 11, weight: .semibold))
-                            Spacer()
-                            Text("\(Int(localInterval)) 秒")
-                                .font(.system(size: 11, weight: .medium, design: .rounded))
-                                .foregroundColor(.accentColor)
-                        }
-                        Slider(value: $localInterval, in: 1...10, step: 1)
-                            .onChange(of: localInterval) { newValue in
-                                onRotateIntervalChanged(newValue)
-                            }
-                    }
-                }
-
-                // 显示涨跌
-                settingsCard {
-                    Toggle(isOn: $settings.showChangePct) {
-                        Label("显示涨跌幅", systemImage: "percent")
-                            .font(.system(size: 11, weight: .semibold))
-                    }
-                }
-
-                // 涨跌颜色
-                settingsCard {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Label("涨跌颜色", systemImage: "paintpalette")
-                            .font(.system(size: 11, weight: .semibold))
-                        Picker("", selection: $settings.priceColorModeRaw) {
-                            Text("绿涨红跌").tag(PriceColorMode.greenUpRedDown.rawValue)
-                            Text("红涨绿跌").tag(PriceColorMode.redUpGreenDown.rawValue)
-                        }
-                        .pickerStyle(.segmented)
-                        .labelsHidden()
-                    }
-                }
-
-                // 涨跌周期
-                settingsCard {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Label("涨跌周期", systemImage: "calendar")
-                            .font(.system(size: 11, weight: .semibold))
-                        Picker("", selection: $settings.pricePeriodRaw) {
-                            Text("UTC+8").tag(PricePeriod.utc8.rawValue)
-                            Text("UTC+0").tag(PricePeriod.utc0.rawValue)
-                            Text("24H").tag(PricePeriod.rolling24h.rawValue)
-                        }
-                        .pickerStyle(.segmented)
-                        .labelsHidden()
-                        Text(periodDescription)
-                            .font(.system(size: 9))
-                            .foregroundColor(.secondary)
-                    }
-                }
-
-                Spacer()
             }
-            .padding(.vertical, 12)
+
+            settingsCard {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Label("轮播间隔", systemImage: "timer")
+                            .font(.system(size: 11, weight: .semibold))
+                        Spacer()
+                        Text("\(Int(localInterval)) 秒")
+                            .font(.system(size: 11, weight: .medium, design: .rounded))
+                            .foregroundColor(.accentColor)
+                    }
+                    Slider(value: $localInterval, in: 1...10, step: 1)
+                        .onChange(of: localInterval) { newValue in
+                            onRotateIntervalChanged(newValue)
+                        }
+                }
+            }
+
+            settingsCard {
+                Toggle(isOn: $settings.showChangePct) {
+                    Label("显示涨跌幅", systemImage: "percent")
+                        .font(.system(size: 11, weight: .semibold))
+                }
+            }
+
+            settingsCard {
+                VStack(alignment: .leading, spacing: 8) {
+                    Label("涨跌颜色", systemImage: "paintpalette")
+                        .font(.system(size: 11, weight: .semibold))
+                    Picker("", selection: $settings.priceColorModeRaw) {
+                        Text("绿涨红跌").tag(PriceColorMode.greenUpRedDown.rawValue)
+                        Text("红涨绿跌").tag(PriceColorMode.redUpGreenDown.rawValue)
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                }
+            }
+
+            settingsCard {
+                VStack(alignment: .leading, spacing: 8) {
+                    Label("涨跌周期", systemImage: "calendar")
+                        .font(.system(size: 11, weight: .semibold))
+                    Picker("", selection: $settings.pricePeriodRaw) {
+                        Text("UTC+8").tag(PricePeriod.utc8.rawValue)
+                        Text("UTC+0").tag(PricePeriod.utc0.rawValue)
+                        Text("24H").tag(PricePeriod.rolling24h.rawValue)
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    Text(periodDescription)
+                        .font(.system(size: 9))
+                        .foregroundColor(.secondary)
+                }
+            }
+
+            Spacer()
         }
+        .padding(.vertical, 12)
     }
 
     private var periodDescription: String {

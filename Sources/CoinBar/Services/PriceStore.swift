@@ -14,6 +14,9 @@ final class PriceStore: ObservableObject {
     private var rotationTimer: AnyCancellable?
     private var cancellables = Set<AnyCancellable>()
 
+    private var pendingTickers: [String: Ticker] = [:]
+    private var flushWorkItem: DispatchWorkItem?
+
     var enabledTickers: [Ticker] {
         settings.enabledCoins.compactMap { tickers[$0.instId] }
     }
@@ -45,6 +48,7 @@ final class PriceStore: ObservableObject {
         settings.objectWillChange
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
+                MenuBarLabelRenderer.invalidateCache()
                 self?.onSubscriptionsChanged()
             }
             .store(in: &cancellables)
@@ -85,6 +89,26 @@ final class PriceStore: ObservableObject {
         SettingsWindowManager.shared.open(priceStore: self)
     }
 
+    private func enqueueTicker(_ ticker: Ticker) {
+        pendingTickers[ticker.instId] = ticker
+        flushWorkItem?.cancel()
+        let workItem = DispatchWorkItem { [weak self] in
+            self?.flushPendingTickers()
+        }
+        flushWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(250), execute: workItem)
+    }
+
+    private func flushPendingTickers() {
+        guard !pendingTickers.isEmpty else { return }
+        var newTickers = tickers
+        for (instId, ticker) in pendingTickers {
+            newTickers[instId] = ticker
+        }
+        pendingTickers = [:]
+        tickers = newTickers
+    }
+
     private func rotate() {
         guard settings.displayMode == .single || settings.displayMode == .stack else { return }
 
@@ -102,7 +126,7 @@ final class PriceStore: ObservableObject {
 extension PriceStore: OKXWebSocketServiceDelegate {
     nonisolated func webSocketService(_ service: OKXWebSocketService, didReceiveTicker ticker: Ticker) {
         DispatchQueue.main.async {
-            self.tickers[ticker.instId] = ticker
+            self.enqueueTicker(ticker)
         }
     }
 

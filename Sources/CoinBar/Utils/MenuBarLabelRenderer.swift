@@ -8,6 +8,9 @@ enum MenuBarLabelRenderer {
     private static let pad: CGFloat = 6
     private static let cellGap: CGFloat = 6
 
+    private static var cachedImage: NSImage?
+    private static var lastRenderTime: Date = .distantPast
+
     private static func coinSymbols(for settings: AppSettings) -> [String: String] {
         var dict: [String: String] = [:]
         for coin in settings.allCoins {
@@ -16,8 +19,25 @@ enum MenuBarLabelRenderer {
         return dict
     }
 
+    static func invalidateCache() {
+        cachedImage = nil
+        lastRenderTime = .distantPast
+    }
+
     @MainActor
     static func render(priceStore: PriceStore) -> NSImage? {
+        let now = Date()
+        if let cached = cachedImage, now.timeIntervalSince(lastRenderTime) < 0.5 {
+            return cached
+        }
+        let image = performRender(priceStore: priceStore)
+        cachedImage = image
+        lastRenderTime = now
+        return image
+    }
+
+    @MainActor
+    private static func performRender(priceStore: PriceStore) -> NSImage? {
         let settings = priceStore.settings
         let symbols = coinSymbols(for: settings)
 

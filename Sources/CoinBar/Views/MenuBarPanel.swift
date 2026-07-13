@@ -4,7 +4,8 @@ import AppKit
 struct MenuBarPanel: View {
     @ObservedObject var priceStore: PriceStore
 
-    // 表格列宽：表头与各行共用，保证竖向对齐
+    @State private var coinSymbols: [String: String] = [:]
+
     private enum Column {
         static let symbol: CGFloat = 35
         static let price: CGFloat = 70
@@ -14,7 +15,7 @@ struct MenuBarPanel: View {
         static let spacing: CGFloat = 6
     }
 
-    private var coinSymbols: [String: String] {
+    private func buildCoinSymbols() -> [String: String] {
         var dict: [String: String] = [:]
         for coin in priceStore.settings.allCoins {
             dict[coin.instId] = coin.symbol
@@ -45,6 +46,14 @@ struct MenuBarPanel: View {
                 .stroke(Color.white.opacity(0.08), lineWidth: 1)
         )
         .shadow(color: Color.black.opacity(0.25), radius: 24, x: 0, y: 10)
+        .onReceive(priceStore.settings.objectWillChange) { _ in
+            DispatchQueue.main.async {
+                coinSymbols = buildCoinSymbols()
+            }
+        }
+        .onAppear {
+            coinSymbols = buildCoinSymbols()
+        }
     }
 
     private var headerView: some View {

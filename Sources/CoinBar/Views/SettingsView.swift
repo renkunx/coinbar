@@ -178,7 +178,7 @@ private struct CoinSettingsTab: View {
                         .font(.system(size: 9))
                         .foregroundColor(.red)
                 } else {
-                    Text("输入基础币符号（如 TON），计价币可选 USDT/USDC")
+                    Text("输入基础币符号（如 GRAM），计价币可选 USDT/USDC")
                         .font(.system(size: 9))
                         .foregroundColor(.secondary.opacity(0.8))
                 }

@@ -147,45 +147,8 @@ final class OKXWebSocketService {
               let channel = arg["channel"] as? String,
               channel == "tickers",
               let dataArray = json["data"] as? [[String: Any]],
-              let first = dataArray.first else { return }
-
-        guard let instId = arg["instId"] as? String,
-              let lastStr = first["last"] as? String,
-              let last = Double(lastStr),
-              let open24hStr = first["open24h"] as? String,
-              let open24h = Double(open24hStr) else { return }
-
-        let sodUtc0: Double = {
-            guard let s = first["sodUtc0"] as? String, let v = Double(s) else { return open24h }
-            return v
-        }()
-        let sodUtc8: Double = {
-            guard let s = first["sodUtc8"] as? String, let v = Double(s) else { return open24h }
-            return v
-        }()
-        let high24h: Double = {
-            guard let s = first["high24h"] as? String, let v = Double(s) else { return 0 }
-            return v
-        }()
-        let low24h: Double = {
-            guard let s = first["low24h"] as? String, let v = Double(s) else { return 0 }
-            return v
-        }()
-        let vol24h: Double = {
-            guard let s = first["vol24h"] as? String, let v = Double(s) else { return 0 }
-            return v
-        }()
-
-        let ticker = Ticker(
-            instId: instId,
-            last: last,
-            open24h: open24h,
-            sodUtc0: sodUtc0,
-            sodUtc8: sodUtc8,
-            high24h: high24h,
-            low24h: low24h,
-            vol24h: vol24h
-        )
+              let first = dataArray.first,
+              let ticker = Ticker.parse(json: first) else { return }
 
         DispatchQueue.main.async {
             self.delegate?.webSocketService(self, didReceiveTicker: ticker)

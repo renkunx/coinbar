@@ -5,13 +5,13 @@ struct MenuBarPanel: View {
     @ObservedObject var priceStore: PriceStore
 
     @State private var coinSymbols: [String: String] = [:]
+    @State private var expandedInstId: String?
 
     private enum Column {
         static let symbol: CGFloat = 35
         static let price: CGFloat = 70
         static let change: CGFloat = 56
-        static let low: CGFloat = 55
-        static let high: CGFloat = 55
+        static let trend: CGFloat = 58
         static let spacing: CGFloat = 6
     }
 
@@ -53,6 +53,9 @@ struct MenuBarPanel: View {
         }
         .onAppear {
             coinSymbols = buildCoinSymbols()
+        }
+        .task {
+            await priceStore.refreshCandles()
         }
     }
 
@@ -127,7 +130,12 @@ struct MenuBarPanel: View {
             VStack(spacing: 2) {
                 columnHeader
                 ForEach(Array(tickers.enumerated()), id: \.element.instId) { index, ticker in
-                    coinRow(ticker)
+                    VStack(spacing: 0) {
+                        coinRow(ticker)
+                        if expandedInstId == ticker.instId {
+                            expandedDetail(ticker)
+                        }
+                    }
                     if index < tickers.count - 1 {
                         Divider()
                             .opacity(0.3)
@@ -138,7 +146,7 @@ struct MenuBarPanel: View {
         )
     }
 
-    // 表头列名：低/高 作为列名，每行只填数值
+    // 表头列名：趋势作为列名，每行只填数值
     private var columnHeader: some View {
         HStack(spacing: Column.spacing) {
             Text("币种")
@@ -148,10 +156,8 @@ struct MenuBarPanel: View {
             Text("涨跌")
                 .frame(width: Column.change, alignment: .center)
             Spacer(minLength: 0)
-            Text("低")
-                .frame(width: Column.low, alignment: .trailing)
-            Text("高")
-                .frame(width: Column.high, alignment: .trailing)
+            Text("24h 趋势")
+                .frame(width: Column.trend, alignment: .trailing)
         }
         .font(.system(size: 9, weight: .medium))
         .foregroundColor(.secondary.opacity(0.7))
@@ -182,24 +188,84 @@ struct MenuBarPanel: View {
 
             Spacer(minLength: 0)
 
-            // 低（列名已在表头，此处只填数值）
-            Text(Format.menuBarPrice(ticker.low24h))
-                .font(.system(size: 10, weight: .regular))
-                .monospacedDigit()
-                .foregroundColor(.secondary.opacity(0.85))
-                .lineLimit(1)
-                .frame(width: Column.low, alignment: .trailing)
-
-            // 高
-            Text(Format.menuBarPrice(ticker.high24h))
-                .font(.system(size: 10, weight: .regular))
-                .monospacedDigit()
-                .foregroundColor(.secondary.opacity(0.85))
-                .lineLimit(1)
-                .frame(width: Column.high, alignment: .trailing)
+            // 24h 趋势迷你图（点击整行展开详情）
+            trendCell(ticker)
+        }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            expandedInstId = (expandedInstId == ticker.instId) ? nil : ticker.instId
         }
         .padding(.vertical, 5)
         .padding(.horizontal, 2)
+    }
+
+    private func trendCell(_ ticker: Ticker) -> some View {
+        Group {
+            if let candles = priceStore.candles[ticker.instId], !candles.isEmpty {
+                if let color = trendColor(for: candles) {
+                    SparklineView(candles: candles, color: color)
+                } else {
+                    trendPlaceholder
+                }
+            } else if priceStore.candlesLoading {
+                ProgressView()
+                    .scaleEffect(0.5)
+                    .frame(width: Column.trend, height: 22)
+            } else {
+                trendPlaceholder
+            }
+        }
+        .frame(width: Column.trend, alignment: .trailing)
+    }
+
+    private var trendPlaceholder: some View {
+        Text("--")
+            .font(.system(size: 10, weight: .regular))
+            .foregroundColor(.secondary.opacity(0.4))
+            .frame(width: Column.trend, height: 22)
+    }
+
+    /// 趋势图颜色：按首尾 close 涨跌 + 用户的涨跌配色偏好
+    private func trendColor(for candles: [Candle]) -> Color? {
+        guard let first = candles.first, let last = candles.last, first.close > 0 else { return nil }
+        let nsColor = priceStore.settings.changeColor(
+            isUp: last.close >= first.close,
+            isZero: last.close == first.close
+        )
+        return Color(nsColor: nsColor)
+    }
+
+    /// 展开详情：大趋势图 + 24h 低/高/成交量
+    private func expandedDetail(_ ticker: Ticker) -> some View {
+        VStack(spacing: 8) {
+            if let candles = priceStore.candles[ticker.instId], !candles.isEmpty {
+                if let color = trendColor(for: candles) {
+                    TrendChartView(candles: candles, color: color)
+                        .frame(maxWidth: .infinity)
+                }
+            } else {
+                HStack {
+                    Spacer()
+                    ProgressView()
+                        .scaleEffect(0.6)
+                    Spacer()
+                }
+                .frame(height: 70)
+            }
+
+            HStack(spacing: Column.spacing) {
+                Text("24h 低 \(Format.menuBarPrice(ticker.low24h))")
+                Text("24h 高 \(Format.menuBarPrice(ticker.high24h))")
+                Text("24h 量 \(Format.volume(ticker.vol24h))")
+                Spacer(minLength: 0)
+            }
+            .font(.system(size: 9, weight: .medium))
+            .monospacedDigit()
+            .foregroundColor(.secondary.opacity(0.85))
+        }
+        .padding(.horizontal, 2)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity)
     }
 
     private func changeBadge(_ ticker: Ticker) -> some View {

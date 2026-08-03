@@ -2,20 +2,36 @@ import SwiftUI
 import AppKit
 import Combine
 
+/// 上次价格快照缓存（启动时立即显示，不等网络）
+private struct TickerCache: Codable {
+    let savedAt: Date
+    let tickers: [String: Ticker]
+}
+
 @MainActor
 final class PriceStore: ObservableObject {
     @Published var tickers: [String: Ticker] = [:]
+    @Published var candles: [String: [Candle]] = [:]
+    @Published var candlesLoading: Bool = false
     @Published var currentIndex: Int = 0
     @Published var pageIndex: Int = 0
     @Published var isConnected: Bool = false
 
     let settings = AppSettings()
     private let webSocket = OKXWebSocketService()
+    private let marketService = OKXMarketService()
     private var rotationTimer: AnyCancellable?
     private var cancellables = Set<AnyCancellable>()
 
     private var pendingTickers: [String: Ticker] = [:]
     private var flushWorkItem: DispatchWorkItem?
+
+    /// K 线缓存有效期（秒），面板打开后 60 秒内不重复拉取
+    private var lastCandlesFetch: Date = .distantPast
+
+    /// 价格快照缓存（UserDefaults），写入节流
+    private let tickerCacheKey = "tickerCacheJSON"
+    private var lastCacheSave: Date = .distantPast
 
     var enabledTickers: [Ticker] {
         settings.enabledCoins.compactMap { tickers[$0.instId] }
@@ -53,20 +69,60 @@ final class PriceStore: ObservableObject {
             }
             .store(in: &cancellables)
 
+        loadCachedTickers()
         connect()
         startRotation()
+    }
+
+    /// 启动时读取上次价格快照，菜单栏首帧即可显示（可能过期，稍后由 REST/WS 刷新）
+    private func loadCachedTickers() {
+        guard let json = UserDefaults.standard.string(forKey: tickerCacheKey),
+              let data = json.data(using: .utf8),
+              let cache = try? JSONDecoder().decode(TickerCache.self, from: data) else { return }
+        tickers = cache.tickers
+    }
+
+    /// 节流持久化价格快照（≥5 秒一次）
+    private func persistTickers() {
+        guard Date().timeIntervalSince(lastCacheSave) >= 5, !tickers.isEmpty else { return }
+        let cache = TickerCache(savedAt: Date(), tickers: tickers)
+        if let data = try? JSONEncoder().encode(cache),
+           let json = String(data: data, encoding: .utf8) {
+            UserDefaults.standard.set(json, forKey: tickerCacheKey)
+        }
+        lastCacheSave = Date()
     }
 
     private func connect() {
         let instIds = settings.enabledCoins.map(\.instId)
         guard !instIds.isEmpty else { return }
         webSocket.connect(instIds: instIds)
+        warmUpTickers(instIds: instIds)
+    }
+
+    /// REST 快照预热：并行拉取全部币种最新价，早于 WS 首推填充，走同一合并/持久化路径
+    private func warmUpTickers(instIds: [String]) {
+        Task { [weak self] in
+            await withTaskGroup(of: Ticker?.self) { group in
+                for instId in instIds {
+                    group.addTask {
+                        await self?.marketService.fetchTicker(instId: instId)
+                    }
+                }
+                for await ticker in group {
+                    guard let ticker else { continue }
+                    self?.enqueueTicker(ticker)
+                }
+            }
+        }
     }
 
     private func onSubscriptionsChanged() {
         pageIndex = 0
         currentIndex = 0
         tickers = [:]
+        candles = [:]
+        lastCandlesFetch = .distantPast
         connect()
     }
 
@@ -92,6 +148,11 @@ final class PriceStore: ObservableObject {
     private func enqueueTicker(_ ticker: Ticker) {
         pendingTickers[ticker.instId] = ticker
         flushWorkItem?.cancel()
+        // 首帧快路径：暂无任何数据（如首次启动无缓存）时立即 flush，不等 250ms 合并
+        guard !tickers.isEmpty else {
+            flushPendingTickers()
+            return
+        }
         let workItem = DispatchWorkItem { [weak self] in
             self?.flushPendingTickers()
         }
@@ -107,6 +168,37 @@ final class PriceStore: ObservableObject {
         }
         pendingTickers = [:]
         tickers = newTickers
+        persistTickers()
+    }
+
+    /// 按需拉取全部已启用币种的 24h K 线（15m × 96），60 秒内命中缓存
+    func refreshCandles() async {
+        let instIds = settings.enabledCoins.map(\.instId)
+        guard !instIds.isEmpty else { return }
+        guard Date().timeIntervalSince(lastCandlesFetch) > 60 || candles.isEmpty else { return }
+        guard !candlesLoading else { return }
+
+        candlesLoading = true
+        defer { candlesLoading = false }
+
+        var result: [String: [Candle]] = [:]
+        await withTaskGroup(of: (String, [Candle]).self) { group in
+            for instId in instIds {
+                group.addTask {
+                    let candles = await self.marketService.fetchCandles(instId: instId)
+                    return (instId, candles)
+                }
+            }
+            for await (instId, candles) in group {
+                result[instId] = candles
+            }
+        }
+
+        candles = result
+        // 全部失败时不更新缓存时间，下次打开面板可立即重试
+        if result.values.contains(where: { !$0.isEmpty }) {
+            lastCandlesFetch = Date()
+        }
     }
 
     private func rotate() {

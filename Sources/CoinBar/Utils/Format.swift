@@ -33,6 +33,21 @@ enum Format {
         return "\(sign)\(String(format: "%.2f", value))%"
     }
 
+    /// 整数展示阈值百分比：去掉尾部多余零（5 -> "5"，5.5 -> "5.5"）
+    static func trimmedDecimal(_ value: Double) -> String {
+        let s = String(format: "%.2f", value)
+        guard let dot = s.firstIndex(of: ".") else { return s }
+        var intPart = s[..<dot]
+        var frac = s[s.index(after: dot)...]
+        while frac.last == "0" { frac = frac.dropLast() }
+        if frac.isEmpty {
+            // 去掉负零整数部分的负号（-0 -> 0）
+            if intPart == "-0" { intPart = "0" }
+            return String(intPart)
+        }
+        return "\(intPart).\(frac)"
+    }
+
     static func compactPrice(_ value: Double) -> String {
         switch value {
         case 1_000_000_000...:

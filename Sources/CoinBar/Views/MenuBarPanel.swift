@@ -6,6 +6,12 @@ struct MenuBarPanel: View {
 
     @State private var coinSymbols: [String: String] = [:]
     @State private var expandedInstId: String?
+    @State private var panelSection: PanelSection = .market
+
+    private enum PanelSection: String, CaseIterable {
+        case market
+        case alerts
+    }
 
     private enum Column {
         static let symbol: CGFloat = 35
@@ -26,10 +32,16 @@ struct MenuBarPanel: View {
     var body: some View {
         VStack(spacing: 10) {
             headerView
+            sectionSwitcher
             Divider()
                 .background(Color.white.opacity(0.12))
                 .padding(.horizontal, 8)
-            tickerList
+            Group {
+                switch panelSection {
+                case .market: tickerList
+                case .alerts: alertCenterView
+                }
+            }
             Divider()
                 .background(Color.white.opacity(0.12))
                 .padding(.horizontal, 8)
@@ -57,6 +69,15 @@ struct MenuBarPanel: View {
         .task {
             await priceStore.refreshCandles()
         }
+    }
+
+    private var sectionSwitcher: some View {
+        Picker("", selection: $panelSection) {
+            Text("行情").tag(PanelSection.market)
+            Text("预警").tag(PanelSection.alerts)
+        }
+        .pickerStyle(.segmented)
+        .labelsHidden()
     }
 
     private var headerView: some View {
@@ -284,6 +305,141 @@ struct MenuBarPanel: View {
                 RoundedRectangle(cornerRadius: 4)
                     .fill(bgColor)
             )
+    }
+
+    // MARK: - 预警中心（面板轻量版：开关 / 启停 / 删除 / 历史）
+
+    private var alertCenterView: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 10) {
+                // 全局开关
+                HStack {
+                    Text("预警总开关")
+                        .font(.system(size: 11, weight: .semibold))
+                    Spacer()
+                    Toggle("", isOn: Binding(
+                        get: { priceStore.settings.alertsEnabled },
+                        set: { priceStore.settings.alertsEnabled = $0 }
+                    ))
+                        .toggleStyle(.switch)
+                        .labelsHidden()
+                }
+
+                // 生效规则
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("生效中 \(priceStore.settings.alerts.count)")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundColor(.secondary)
+
+                    if priceStore.settings.alerts.isEmpty {
+                        Text("暂无预警，前往设置添加")
+                            .font(.system(size: 10))
+                            .foregroundColor(.secondary.opacity(0.7))
+                            .padding(.vertical, 4)
+                    } else {
+                        ForEach(priceStore.settings.alerts) { alert in
+                            alertRowInline(alert)
+                        }
+                    }
+                }
+
+                Divider().opacity(0.3)
+
+                // 最近触发
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Text("最近触发")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        if !priceStore.settings.alertHistory.isEmpty {
+                            Button("清空") { priceStore.clearAlertHistory() }
+                                .buttonStyle(.plain)
+                                .font(.system(size: 10))
+                                .foregroundColor(.secondary.opacity(0.8))
+                        }
+                    }
+
+                    let history = priceStore.settings.alertHistory.suffix(15).reversed()
+                    if history.isEmpty {
+                        Text("暂无触发记录")
+                            .font(.system(size: 10))
+                            .foregroundColor(.secondary.opacity(0.7))
+                            .padding(.vertical, 4)
+                    } else {
+                        ForEach(Array(history)) { record in
+                            historyRowInline(record)
+                        }
+                    }
+                }
+            }
+            .padding(.vertical, 4)
+            .padding(.horizontal, 2)
+        }
+    }
+
+    private func alertRowInline(_ alert: PriceAlert) -> some View {
+        let symbol = priceStore.settings.allCoins
+            .first(where: { $0.instId == alert.instId })?.symbol
+            ?? alert.instId.split(separator: "-").first.map(String.init)
+            ?? alert.instId
+
+        return HStack(spacing: 8) {
+            Toggle("", isOn: Binding(
+                get: { alert.enabled },
+                set: { newValue in
+                    var updated = alert
+                    updated.enabled = newValue
+                    priceStore.updateAlert(updated)
+                }
+            ))
+            .toggleStyle(.switch)
+            .labelsHidden()
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text(alert.conditionDescription(symbol: symbol))
+                    .font(.system(size: 11, weight: .medium))
+                    .lineLimit(1)
+                if let note = alert.note, !note.isEmpty {
+                    Text(note)
+                        .font(.system(size: 9))
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                }
+            }
+
+            Spacer()
+
+            Button {
+                priceStore.removeAlert(id: alert.id)
+            } label: {
+                Image(systemName: "trash")
+                    .font(.system(size: 9))
+                    .foregroundColor(.secondary.opacity(0.6))
+            }
+            .buttonStyle(.plain)
+            .help("删除")
+        }
+        .padding(.vertical, 3)
+    }
+
+    private func historyRowInline(_ record: AlertTriggerRecord) -> some View {
+        HStack(spacing: 8) {
+            VStack(alignment: .leading, spacing: 1) {
+                Text(record.title)
+                    .font(.system(size: 10, weight: .medium))
+                    .lineLimit(1)
+                Text(record.date.formatted(date: .omitted, time: .shortened))
+                    .font(.system(size: 9))
+                    .foregroundColor(.secondary)
+            }
+            Spacer()
+            Text(Format.price(record.triggeredPrice))
+                .font(.system(size: 10, weight: .medium, design: .rounded))
+                .monospacedDigit()
+                .foregroundColor(.secondary)
+        }
+        .padding(.vertical, 2)
     }
 
     private var footerView: some View {

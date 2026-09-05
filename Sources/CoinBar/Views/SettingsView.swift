@@ -8,6 +8,9 @@ struct SettingsView: View {
             CoinSettingsTab(settings: priceStore.settings)
                 .tabItem { Label("币种", systemImage: "bitcoinsign.circle") }
 
+            PriceAlertsTab(settings: priceStore.settings, priceStore: priceStore)
+                .tabItem { Label("预警", systemImage: "bell.fill") }
+
             DisplaySettingsTab(
                 settings: priceStore.settings,
                 onRotateIntervalChanged: { priceStore.updateRotateInterval($0) }
@@ -19,6 +22,19 @@ struct SettingsView: View {
         }
         .frame(width: 420, height: 560)
     }
+}
+
+/// 设置卡片容器（在「显示」/「预警」Tab 间共用）
+@ViewBuilder
+fileprivate func SettingsCard<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+    content()
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(Color.secondary.opacity(0.08))
+        )
+        .padding(.horizontal)
 }
 
 // MARK: - 币种管理
@@ -279,7 +295,7 @@ private struct DisplaySettingsTab: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal)
 
-            settingsCard {
+            SettingsCard {
                 VStack(alignment: .leading, spacing: 8) {
                     Label("显示模式", systemImage: "rectangle.split.3x1")
                         .font(.system(size: 11, weight: .semibold))
@@ -295,7 +311,7 @@ private struct DisplaySettingsTab: View {
                 }
             }
 
-            settingsCard {
+            SettingsCard {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
                         Label("轮播间隔", systemImage: "timer")
@@ -312,14 +328,14 @@ private struct DisplaySettingsTab: View {
                 }
             }
 
-            settingsCard {
+            SettingsCard {
                 Toggle(isOn: $settings.showChangePct) {
                     Label("显示涨跌幅", systemImage: "percent")
                         .font(.system(size: 11, weight: .semibold))
                 }
             }
 
-            settingsCard {
+            SettingsCard {
                 VStack(alignment: .leading, spacing: 8) {
                     Label("涨跌颜色", systemImage: "paintpalette")
                         .font(.system(size: 11, weight: .semibold))
@@ -332,7 +348,7 @@ private struct DisplaySettingsTab: View {
                 }
             }
 
-            settingsCard {
+            SettingsCard {
                 VStack(alignment: .leading, spacing: 8) {
                     Label("涨跌周期", systemImage: "calendar")
                         .font(.system(size: 11, weight: .semibold))
@@ -361,16 +377,312 @@ private struct DisplaySettingsTab: View {
         case .rolling24h: return "以 24 小时滚动开盘价为基准"
         }
     }
+}
 
-    private func settingsCard<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
-        content()
-            .padding(12)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(Color.secondary.opacity(0.08))
-            )
+// MARK: - 预警管理
+
+private struct PriceAlertsTab: View {
+    @ObservedObject var settings: AppSettings
+    /// 通过 PriceStore 操作以同步清理 AlertEngine 运行态
+    var priceStore: PriceStore
+
+    @State private var editing: PriceAlert?
+    @State private var showCreate = false
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // 操作栏
+            HStack(spacing: 8) {
+                Text("预警规则 \(settings.alerts.count)")
+                    .font(.system(size: 10))
+                    .foregroundColor(.secondary)
+                Spacer()
+                Toggle("", isOn: $settings.alertsEnabled)
+                    .toggleStyle(.switch)
+                    .labelsHidden()
+                    .help("全局预警总开关")
+                Text(settings.alertsEnabled ? "已启用" : "已暂停")
+                    .font(.system(size: 10))
+                    .foregroundColor(settings.alertsEnabled ? .accentColor : .secondary)
+            }
             .padding(.horizontal)
+            .padding(.top, 12)
+            .padding(.bottom, 8)
+
+            Divider().opacity(0.3).padding(.horizontal, 8)
+
+            List {
+                if settings.alerts.isEmpty {
+                    Section {
+                        HStack {
+                            Spacer()
+                            Text("尚未添加预警")
+                                .font(.system(size: 11))
+                                .foregroundColor(.secondary)
+                            Spacer()
+                        }
+                        .padding(.vertical, 12)
+                    }
+                } else {
+                    Section {
+                        ForEach(settings.alerts) { alert in
+                            alertRow(alert)
+                        }
+                    } header: {
+                        sectionHeader("生效中", count: settings.alerts.count)
+                    }
+                }
+            }
+            .listStyle(.sidebar)
+
+            Divider().opacity(0.3)
+
+            // 新建预警
+            HStack {
+                Spacer()
+                Button {
+                    showCreate = true
+                } label: {
+                    Label("新建预警", systemImage: "plus.circle.fill")
+                        .font(.system(size: 12, weight: .medium))
+                }
+                .buttonStyle(.plain)
+                .foregroundColor(.accentColor)
+                Spacer()
+            }
+            .padding(12)
+        }
+        .sheet(isPresented: $showCreate) {
+            AlertEditor(mode: .create, settings: settings) { newAlert in
+                priceStore.addAlert(newAlert)
+                Task { await NotificationService.shared.requestAuthorizationIfNeeded() }
+            }
+        }
+        .sheet(item: $editing) { alert in
+            AlertEditor(mode: .edit(alert), settings: settings) { updated in
+                priceStore.updateAlert(updated)
+            }
+        }
+    }
+
+    private func sectionHeader(_ title: String, count: Int) -> some View {
+        HStack {
+            Text(title)
+                .font(.system(size: 10, weight: .semibold))
+            Text("\(count)")
+                .font(.system(size: 9))
+                .foregroundColor(.secondary)
+        }
+    }
+
+    @ViewBuilder
+    private func alertRow(_ alert: PriceAlert) -> some View {
+        let symbol = settings.allCoins.first(where: { $0.instId == alert.instId })?.symbol
+            ?? alert.instId.split(separator: "-").first.map(String.init) ?? alert.instId
+
+        HStack(spacing: 8) {
+            Toggle("", isOn: Binding(
+                get: { alert.enabled },
+                set: { newValue in
+                    var updated = alert
+                    updated.enabled = newValue
+                    priceStore.updateAlert(updated)
+                }
+            ))
+            .toggleStyle(.switch)
+            .labelsHidden()
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(alert.conditionDescription(symbol: symbol))
+                    .font(.system(size: 12, weight: .medium))
+                if let note = alert.note, !note.isEmpty {
+                    Text(note)
+                        .font(.system(size: 9))
+                        .foregroundColor(.secondary)
+                }
+            }
+
+            Spacer()
+
+            Button {
+                editing = alert
+            } label: {
+                Image(systemName: "pencil")
+                    .font(.system(size: 10))
+                    .foregroundColor(.secondary.opacity(0.7))
+            }
+            .buttonStyle(.plain)
+            .help("编辑")
+
+            Button {
+                withAnimation(.easeInOut(duration: 0.15)) {
+                    priceStore.removeAlert(id: alert.id)
+                }
+            } label: {
+                Image(systemName: "trash")
+                    .font(.system(size: 9))
+                    .foregroundColor(.secondary.opacity(0.6))
+            }
+            .buttonStyle(.plain)
+            .help("删除")
+        }
+        .contentShape(Rectangle())
+        .onTapGesture { editing = alert }
+    }
+}
+
+/// 预警新建/编辑表单（Sheet）
+private struct AlertEditor: View {
+    enum Mode {
+        case create
+        case edit(PriceAlert)
+    }
+
+    let mode: Mode
+    let settings: AppSettings
+    let onSubmit: (PriceAlert) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var instId: String = ""
+    @State private var type: AlertType = .price
+    @State private var direction: AlertDirection = .up
+    @State private var thresholdText: String = ""
+    @State private var note: String = ""
+    @State private var error: String?
+
+    var body: some View {
+        VStack(spacing: 16) {
+            HStack {
+                Text(mode.isEdit ? "编辑预警" : "新建预警")
+                    .font(.system(size: 14, weight: .semibold))
+                Spacer()
+                Button("取消") { dismiss() }
+                    .buttonStyle(.plain)
+                    .foregroundColor(.secondary)
+            }
+            .padding(.horizontal)
+            .padding(.top, 16)
+
+            Form {
+                Section("币种") {
+                    Picker("币种", selection: $instId) {
+                        ForEach(settings.allCoins) { coin in
+                            Text(coin.instId).tag(coin.instId)
+                        }
+                    }
+                }
+
+                Section("条件") {
+                    Picker("类型", selection: $type) {
+                        Text("价格").tag(AlertType.price)
+                        Text("涨跌幅").tag(AlertType.changePct)
+                    }
+                    .pickerStyle(.segmented)
+
+                    Picker("方向", selection: $direction) {
+                        Text(type == .price ? "涨破 ≥" : "涨幅 ≥").tag(AlertDirection.up)
+                        Text(type == .price ? "跌破 ≤" : "跌幅 ≥").tag(AlertDirection.down)
+                    }
+                    .pickerStyle(.segmented)
+
+                    HStack {
+                        Text(thresholdLabel)
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary)
+                        TextField(thresholdPlaceholder, text: $thresholdText)
+                            .textFieldStyle(.roundedBorder)
+                    }
+                }
+
+                Section("备注（可选）") {
+                    TextField("例如：关注关键阻力位", text: $note)
+                }
+
+                if let error {
+                    Text(error)
+                        .foregroundColor(.red)
+                        .font(.system(size: 11))
+                }
+            }
+            .formStyle(.grouped)
+
+            HStack {
+                Spacer()
+                Button(mode.isEdit ? "保存" : "添加") { submit() }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(instId.isEmpty)
+            }
+            .padding(.horizontal)
+            .padding(.bottom, 16)
+        }
+        .frame(width: 360, height: 460)
+        .onAppear(perform: loadInitial)
+    }
+
+    private var thresholdLabel: String {
+        switch type {
+        case .price: return "价格阈值"
+        case .changePct: return "百分比（%）"
+        }
+    }
+
+    private var thresholdPlaceholder: String {
+        switch type {
+        case .price: return "如 100000"
+        case .changePct: return "如 5"
+        }
+    }
+
+    private func loadInitial() {
+        switch mode {
+        case .create:
+            instId = settings.allCoins.first?.instId ?? ""
+        case .edit(let alert):
+            instId = alert.instId
+            type = alert.type
+            direction = alert.direction
+            thresholdText = String(alert.threshold)
+            note = alert.note ?? ""
+        }
+    }
+
+    private func submit() {
+        let trimmed = thresholdText.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: ",", with: ".")
+        guard let value = Double(trimmed) else {
+            error = "阈值需为数字"
+            return
+        }
+        switch type {
+        case .price:
+            guard value > 0 else { error = "价格阈值必须大于 0"; return }
+        case .changePct:
+            guard value >= 0, value <= 100 else { error = "百分比阈值需在 0–100 之间"; return }
+        }
+
+        let id: UUID = {
+            if case .edit(let alert) = mode { return alert.id }
+            return UUID()
+        }()
+        let noteValue = note.trimmingCharacters(in: .whitespaces)
+        let alert = PriceAlert(
+            id: id,
+            instId: instId,
+            type: type,
+            direction: direction,
+            threshold: value,
+            enabled: true,
+            note: noteValue.isEmpty ? nil : noteValue
+        )
+        onSubmit(alert)
+        dismiss()
+    }
+}
+
+private extension AlertEditor.Mode {
+    var isEdit: Bool {
+        if case .edit = self { return true }
+        return false
     }
 }
 

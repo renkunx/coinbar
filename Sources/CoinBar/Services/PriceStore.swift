@@ -20,6 +20,8 @@ final class PriceStore: ObservableObject {
     let settings = AppSettings()
     private let webSocket = OKXWebSocketService()
     private let marketService = OKXMarketService()
+    private let alertEngine = AlertEngine()
+    private let notifier = NotificationService.shared
     private var rotationTimer: AnyCancellable?
     private var cancellables = Set<AnyCancellable>()
 
@@ -126,6 +128,32 @@ final class PriceStore: ObservableObject {
         connect()
     }
 
+    // MARK: - 预警管理（UI 通过此处操作以同步清理引擎运行态）
+
+    func addAlert(_ alert: PriceAlert) {
+        settings.addAlert(alert)
+    }
+
+    func updateAlert(_ updated: PriceAlert) {
+        settings.updateAlert(updated)
+        // 编辑视为新规则，清掉旧状态以便重新首帧同步
+        alertEngine.removeState(updated.id)
+    }
+
+    func removeAlert(id: UUID) {
+        settings.removeAlert(id: id)
+        alertEngine.removeState(id)
+    }
+
+    func removeCoinWithAlerts(instId: String) {
+        alertEngine.clearInstId(instId, alerts: settings.alerts)
+        settings.removeCoin(instId: instId)
+    }
+
+    func clearAlertHistory() {
+        settings.clearHistory()
+    }
+
     private func startRotation() {
         rotationTimer?.cancel()
         rotationTimer = Timer.publish(every: settings.rotateInterval, on: .main, in: .common)
@@ -162,6 +190,7 @@ final class PriceStore: ObservableObject {
 
     private func flushPendingTickers() {
         guard !pendingTickers.isEmpty else { return }
+        let updatedTickers = Array(pendingTickers.values)
         var newTickers = tickers
         for (instId, ticker) in pendingTickers {
             newTickers[instId] = ticker
@@ -169,6 +198,22 @@ final class PriceStore: ObservableObject {
         pendingTickers = [:]
         tickers = newTickers
         persistTickers()
+        evaluateAlerts(updatedTickers)
+    }
+
+    /// 对本轮刷新涉及的 ticker 跑预警判定，命中则记录历史并发系统通知
+    private func evaluateAlerts(_ updatedTickers: [Ticker]) {
+        guard settings.alertsEnabled else { return }
+        let alerts = settings.alerts
+        guard !alerts.isEmpty else { return }
+        let period = settings.pricePeriod
+        for ticker in updatedTickers {
+            let triggers = alertEngine.evaluate(alerts: alerts, ticker: ticker, period: period)
+            for record in triggers {
+                settings.appendHistory(record)
+                notifier.send(record)
+            }
+        }
     }
 
     /// 按需拉取全部已启用币种的 24h K 线（15m × 96），60 秒内命中缓存
@@ -225,6 +270,10 @@ extension PriceStore: OKXWebSocketServiceDelegate {
     nonisolated func webSocketServiceDidChangeStatus(_ service: OKXWebSocketService, connected: Bool) {
         DispatchQueue.main.async {
             self.isConnected = connected
+            // 重连后清空预警状态，使下一次刷新退化为首帧同步（不发通知，避免误报）
+            if connected {
+                self.alertEngine.reset()
+            }
         }
     }
 }

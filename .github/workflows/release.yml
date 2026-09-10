@@ -30,13 +30,15 @@ jobs:
           /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" Resources/Info.plist
           echo "Version: $VERSION"
 
-      - name: Build (release)
-        run: swift build -c release
+      - name: Build (release, universal)
+        run: swift build -c release --arch arm64 --arch x86_64
 
       - name: Create app bundle
         run: |
           mkdir -p CoinBar.app/Contents/MacOS CoinBar.app/Contents/Resources
-          cp "$(swift build --show-bin-path -c release)/CoinBar" CoinBar.app/Contents/MacOS/
+          BIN_DIR="$(swift build --show-bin-path -c release --arch arm64 --arch x86_64)"
+          lipo -info "$BIN_DIR/CoinBar"
+          cp "$BIN_DIR/CoinBar" CoinBar.app/Contents/MacOS/
           cp Resources/Info.plist CoinBar.app/Contents/
           cp Resources/AppIcon.icns CoinBar.app/Contents/Resources/
 
@@ -66,6 +68,8 @@ jobs:
     name: Create Release
     needs: build
     runs-on: macos-latest
+    outputs:
+      sha256: ${{ steps.hash.outputs.sha256 }}
 
     steps:
       - name: Checkout
@@ -77,10 +81,53 @@ jobs:
           name: CoinBar-dmg
           path: .
 
+      - name: Compute sha256
+        id: hash
+        run: echo "sha256=$(shasum -a 256 CoinBar.dmg | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
           name: "${{ github.ref_name }}"
           files: CoinBar.dmg
-          draft: true
+          draft: false
           generate_release_notes: true
+
+  update-tap:
+    name: Update Homebrew tap
+    needs: release
+    runs-on: ubuntu-latest
+    # secret 未配置时跳过（首次配置 HOMEBREW_TAP_TOKEN 前不会自动同步 tap）
+    if: ${{ secrets.HOMEBREW_TAP_TOKEN != '' }}
+
+    steps:
+      - name: Checkout tap
+        uses: actions/checkout@v4
+        with:
+          repository: renkunx/homebrew-coinbar
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          path: tap
+
+      - name: Update Cask
+        working-directory: tap
+        env:
+          SHA256: ${{ needs.release.outputs.sha256 }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          sed -i "s|^  version \".*\"|  version \"${VERSION}\"|" Casks/coinbar.rb
+          sed -i "s|^  sha256 \".*\"|  sha256 \"${SHA256}\"|" Casks/coinbar.rb
+          echo "Updated Casks/coinbar.rb:"
+          cat Casks/coinbar.rb
+
+      - name: Commit and push
+        working-directory: tap
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Casks/coinbar.rb
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          git commit -m "chore: bump coinbar to ${GITHUB_REF_NAME#v}"
+          git push

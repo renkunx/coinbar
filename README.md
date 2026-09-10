@@ -4,6 +4,24 @@ macOS 菜单栏加密货币行情工具。
 
 ## 安装
 
+### Homebrew（推荐）
+
+```bash
+brew tap renkunx/coinbar
+brew trust renkunx/coinbar   # Homebrew 6+ 对第三方 tap 的一次性信任确认
+brew install --cask coinbar
+```
+
+升级与卸载：
+
+```bash
+brew upgrade --cask coinbar
+brew uninstall --cask coinbar   # 卸载应用
+brew zap --cask coinbar         # 卸载并清理偏好设置
+```
+
+> Cask 托管在 [renkunx/homebrew-coinbar](https://github.com/renkunx/homebrew-coinbar)，每次发版自动更新。`brew trust` 仅首次需要，旧版 brew 可跳过。
+
 ### 本地编译安装
 
 ```bash
@@ -12,7 +30,7 @@ macOS 菜单栏加密货币行情工具。
 
 ### 下载 Release 安装
 
-1. 从 [Releases](https://github.com/renkun/coinbar/releases) 下载 `CoinBar.dmg`
+1. 从 [Releases](https://github.com/renkunx/coinbar/releases) 下载 `CoinBar.dmg`
 2. 打开 DMG，将 CoinBar 拖入 `/Applications`
 
 ### 首次启动

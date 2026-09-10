@@ -97,9 +97,7 @@ jobs:
     name: Update Homebrew tap
     needs: release
     runs-on: ubuntu-latest
-    # secret 未配置时跳过（首次配置 HOMEBREW_TAP_TOKEN 前不会自动同步 tap）
-    if: ${{ secrets.HOMEBREW_TAP_TOKEN != '' }}
-
+    # 注意：job 级 if 不能引用 secrets 上下文，会导致整个 workflow 文件无效
     steps:
       - name: Checkout tap
         uses: actions/checkout@v4

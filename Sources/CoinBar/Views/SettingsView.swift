@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 struct SettingsView: View {
     @ObservedObject var priceStore: PriceStore
@@ -16,6 +17,9 @@ struct SettingsView: View {
                 onRotateIntervalChanged: { priceStore.updateRotateInterval($0) }
             )
             .tabItem { Label("显示", systemImage: "slider.horizontal.3") }
+
+            GeneralSettingsTab()
+                .tabItem { Label("通用", systemImage: "gearshape") }
 
             AboutTab()
                 .tabItem { Label("关于", systemImage: "info.circle") }
@@ -683,6 +687,74 @@ private extension AlertEditor.Mode {
     var isEdit: Bool {
         if case .edit = self { return true }
         return false
+    }
+}
+
+// MARK: - 通用
+
+private struct GeneralSettingsTab: View {
+    @ObservedObject private var launchAtLogin = LaunchAtLoginService.shared
+
+    private var launchAtLoginBinding: Binding<Bool> {
+        Binding(
+            get: { launchAtLogin.isEnabled },
+            set: { launchAtLogin.setEnabled($0) }
+        )
+    }
+
+    var body: some View {
+        VStack(spacing: 14) {
+            Text("通用设置")
+                .font(.system(size: 14, weight: .semibold))
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal)
+
+            SettingsCard {
+                VStack(alignment: .leading, spacing: 8) {
+                    Toggle(isOn: launchAtLoginBinding) {
+                        Label("登录时自动启动", systemImage: "power")
+                            .font(.system(size: 11, weight: .semibold))
+                    }
+                    .toggleStyle(.switch)
+                    .disabled(!launchAtLogin.isAvailable)
+
+                    if !launchAtLogin.isAvailable {
+                        Text("使用 swift run 运行时不可用，请先安装 CoinBar.app")
+                            .font(.system(size: 9))
+                            .foregroundColor(.secondary)
+                    } else if let error = launchAtLogin.lastError {
+                        Text("设置失败：\(error)")
+                            .font(.system(size: 9))
+                            .foregroundColor(.red)
+                    } else if launchAtLogin.requiresApproval {
+                        HStack(spacing: 4) {
+                            Text("需在「系统设置 → 通用 → 登录项」中允许")
+                                .font(.system(size: 9))
+                                .foregroundColor(.orange)
+                            Button("打开") { openLoginItemsSettings() }
+                                .buttonStyle(.link)
+                                .font(.system(size: 9))
+                        }
+                    } else {
+                        Text("开机或登录 macOS 后自动在菜单栏运行")
+                            .font(.system(size: 9))
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+
+            Spacer()
+        }
+        .padding(.vertical, 12)
+        .onAppear { launchAtLogin.refresh() }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            launchAtLogin.refresh()
+        }
+    }
+
+    private func openLoginItemsSettings() {
+        guard let url = URL(string: "x-apple.systempreferences:com.apple.LoginItems-Settings.extension") else { return }
+        NSWorkspace.shared.open(url)
     }
 }
 
